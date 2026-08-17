@@ -1,19 +1,22 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from os import path, makedirs
+from os import path, makedirs, getenv
 # write the code for creating and object of SQLAlchemy
 db = SQLAlchemy()
 DB_NAME = "database.db"
 # Base directory for the websote package
 BASEDIR = path.abspath(path.dirname(__file__))
+# Allow DB location to be overridden (e.g. /app/data in Docker)
+DB_DIR = getenv("DB_DIR", BASEDIR)
 
 
 def create_app():
   app = Flask(__name__)
-  app.config['SECRET_KEY'] = "Simple Secret Key"
+  app.config['SECRET_KEY'] = getenv("SECRET_KEY", "Simple Secret Key")
   app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-  # Write the code for adding your database to the application here
-  DB_PATH = path.join(BASEDIR, DB_NAME)
+  # Ensure DB directory exists, then point SQLAlchemy at it
+  makedirs(DB_DIR, exist_ok=True)
+  DB_PATH = path.join(DB_DIR, DB_NAME)
   app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{DB_PATH}"
   # Initialize the db with this app
   db.init_app(app)

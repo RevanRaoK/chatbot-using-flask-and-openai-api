@@ -6,7 +6,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# System deps for building wheels (some packages need a compiler on slim images)
+# gcc for any wheel builds; safe to include on slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends gcc \
     && rm -rf /var/lib/apt/lists/*
@@ -18,12 +18,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Persistent directory for the SQLite database
-RUN mkdir -p /app/data && chown -R nobody:nogroup /app
-USER nobody
-
+# Mount a volume here in production to persist data across deploys:
+#   docker run -v chatty-data:/app/data ...
+#   railway: it persists /app/data automatically
+RUN mkdir -p /app/data
 ENV DB_DIR=/app/data
+
+# Use Railway/Docker's PORT env var if set, otherwise 5000
+ENV PORT=5000
 
 EXPOSE 5000
 
-# Use gunicorn for production. 2 workers is plenty for an IO-bound LLM chat app.
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "2", "--timeout", "120", "app:app"]
+# Shell form so $PORT is expanded at container start.
+# 2 workers, 120s timeout for slow LLM calls.
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT} --workers 2 --timeout 120 app:app"]
